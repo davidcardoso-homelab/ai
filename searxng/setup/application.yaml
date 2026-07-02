@@ -1,0 +1,20 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: searxng
+  namespace: argocd
+spec:
+  project: ai
+  sources:
+    - repoURL: 'git@github.com:davidcardoso-homelab/ai.git'
+      targetRevision: main
+      path: searxng/values/
+  destination:
+    server: 'https://kubernetes.default.svc'
+    namespace: ai
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

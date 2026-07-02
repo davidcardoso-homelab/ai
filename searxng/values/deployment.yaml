@@ -1,0 +1,75 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: searxng
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: searxng
+  template:
+    metadata:
+      labels:
+        app: searxng
+    spec:
+      initContainers:
+        - name: init-config
+          image: busybox:latest
+          command:
+            - /bin/sh
+            - -c
+            - sed "s|__SEARXNG_SECRET__|${SEARXNG_SECRET}|g" /tmp/settings.yml.template > /etc/searxng/settings.yml
+          env:
+            - name: SEARXNG_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: searxng-secret
+                  key: SEARXNG_SECRET
+          volumeMounts:
+            - name: settings-template
+              mountPath: /tmp/settings.yml.template
+              subPath: settings.yml
+            - name: searxng-config
+              mountPath: /etc/searxng
+      containers:
+        - name: searxng
+          image: searxng/searxng:latest
+          env:
+            - name: SEARXNG_BASE_URL
+              value: "http://searxng:8080/"
+            - name: SEARXNG_PORT
+              value: "8080"
+          ports:
+            - containerPort: 8080
+          volumeMounts:
+            - name: searxng-config
+              mountPath: /etc/searxng
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "100Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+          securityContext:
+            capabilities:
+              drop:
+                - ALL
+              add:
+                - CHOWN
+                - SETGID
+                - SETUID
+                - DAC_OVERRIDE
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 30
+            timeoutSeconds: 5
+      volumes:
+        - name: settings-template
+          configMap:
+            name: searxng-config
+        - name: searxng-config
+          emptyDir: {}
