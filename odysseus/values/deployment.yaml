@@ -1,0 +1,74 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: odysseus
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: odysseus
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: odysseus
+    spec:
+      containers:
+        - name: odysseus
+          image: ghcr.io/pewdiepie-archdaemon/odysseus:latest
+          env:
+            - name: PUID
+              value: "1000"
+            - name: PGID
+              value: "1000"
+            - name: TZ
+              value: "America/Sao_Paulo"
+            - name: OLLAMA_BASE_URL
+              value: "http://ollama.ai.svc.cluster.local:11434"
+            - name: SEARXNG_INSTANCE
+              value: "http://searxng:8080"
+            - name: CHROMADB_HOST
+              value: "chromadb"
+            - name: CHROMADB_PORT
+              value: "8000"
+            - name: NTFY_BASE_URL
+              value: "http://ntfy.homelab"
+            - name: DATABASE_URL
+              value: "sqlite:///./data/app.db"
+            - name: AUTH_ENABLED
+              value: "true"
+            - name: SECURE_COOKIES
+              value: "false"
+            - name: ALLOWED_ORIGINS
+              value: "http://odysseus.homelab"
+            - name: ODYSSEUS_ADMIN_USER
+              value: "admin"
+            - name: ODYSSEUS_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: odysseus-secret
+                  key: ODYSSEUS_ADMIN_PASSWORD
+          ports:
+            - containerPort: 7000
+          volumeMounts:
+            - name: data
+              mountPath: /app/data
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+            limits:
+              cpu: "1"
+              memory: "1Gi"
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 7000
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            timeoutSeconds: 10
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: odysseus-data-pvc
